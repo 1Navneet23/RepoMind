@@ -178,4 +178,4 @@ repomind/
 
 ## Author
 
-Built by [Your Name](https://github.com/yourusername)
+Built by [Your Navneet Singh](https://github.com/1Navneet23)
