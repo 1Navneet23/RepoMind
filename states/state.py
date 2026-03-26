@@ -216,7 +216,7 @@ def run_pr(state: agent_state) -> dict:
 # ── Routing ───────────────────────────────────────────────────────────────────
 
 def route_by_mode(state: agent_state) -> str:
-    return "answer" if state["plan"]["mode"] == "rag" else "file_fetcher"
+    return "answer_node" if state["plan"]["mode"] == "rag" else "file_fetcher"
 
 
 def route_after_review(state: agent_state) -> str:
@@ -265,7 +265,7 @@ graph.add_node("embedding",    run_embedding)
 graph.add_node("vs",           run_vectorstore)
 graph.add_node("planner",      run_planner)
 graph.add_node("file_fetcher", run_file_fetcher)
-graph.add_node("answer",       run_answer)
+graph.add_node("answer_node",       run_answer)
 graph.add_node("code",         run_coder)
 graph.add_node("review",       run_reviewer)
 graph.add_node("test",         run_tester)
@@ -281,7 +281,7 @@ graph.add_edge("vs",          "planner")
 graph.add_conditional_edges(
     "planner",
     route_by_mode,
-    {"answer": "answer", "file_fetcher": "file_fetcher"}
+    {"answer": "answer_node", "file_fetcher": "file_fetcher"}
 )
 
 graph.add_edge("file_fetcher", "code")
@@ -305,7 +305,7 @@ graph.add_conditional_edges(
     {"pr": "pr", "code": "code", "abort": END}
 )
 
-graph.add_edge("answer", END)
+graph.add_edge("answer_node", END)
 graph.add_edge("pr",     END)   # pr → END, always final
 
 workflow = graph.compile(
