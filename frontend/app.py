@@ -25,7 +25,7 @@ def check_password():
     st.title("Git Analyser")
     pwd = st.text_input("Password", type="password")
     if st.button("Enter"):
-        if pwd == os.getenv("APP_PASSWORD", ""):
+        if pwd == st.secrets["APP_PASSWORD"]
             st.session_state.authenticated = True
             st.rerun()
         else:
