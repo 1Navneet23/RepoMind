@@ -13,8 +13,7 @@ import json
 import requests
 import streamlit as st
 
-API = "http://localhost:8000"
-
+API = st.secrets.get("API_URL", "http://localhost:8000")
 st.set_page_config(page_title="Git Analyser", layout="wide")
 
 # ── Simple password gate ──────────────────────────────────────────────────────
