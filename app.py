@@ -12,30 +12,11 @@ import time
 import json
 import requests
 import streamlit as st
-
-API = st.secrets.get("API_URL", "http://localhost:8000")
+API = "https://repomind-54s3.onrender.com"
+ 
 st.set_page_config(page_title="Git Analyser", layout="wide")
 
-# ── Simple password gate ──────────────────────────────────────────────────────
-
-def check_password():
-    if st.session_state.get("authenticated"):
-        return True
-    st.title("Git Analyser")
-    password = st.text_input("Password", type="password")
-    if st.button("Enter"):
-        if password == st.secrets.get("APP_PASSWORD", "changeme"):
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Wrong password")
-    return False
-
-if not check_password():
-    st.stop()
-
-# ── Password gate ─────────────────────────────────────────────────────────────
-
+ 
 import os
 
 def check_password():
