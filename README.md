@@ -1,42 +1,81 @@
+# RepoMind 🚀
 
-# RepoMind
+**AI-Powered Multi-Agent GitHub Assistant that Understands and Fixes Code**
 
-> An AI-powered multi-agent assistant that understands your GitHub repository and automatically fixes code — from reading the codebase to opening a pull request.
-
-![Demo](demo.gif)
-
-🔗 **[Live Demo](https://your-demo-link.streamlit.app)** &nbsp;|&nbsp; 🔑 Password: `contact me for access`
+RepoMind is a full-stack AI system that reads your GitHub repository, understands the entire codebase, and can either answer questions or generate real code changes — with automated review, testing, and pull request creation.
 
 ---
 
-## What it does
+## 🌐 Live Demo
 
-You give RepoMind a GitHub repository and a task. It reads the entire codebase, understands it, and either answers your question or writes the code change and opens a pull request — with a human approval step before anything touches your repo.
-
-**Two modes:**
-
-**Ask mode** — ask anything about the codebase. "Where is authentication handled?" "What does this repo do?" "Which function processes the PDF?" RepoMind searches the code semantically and gives you a direct answer.
-
-**Dev mode** — describe a code change. "Add input validation to `py_reader` in `backend/pdf_reader.py`." RepoMind writes the change, reviews it, syntax checks it, shows it to you for approval, then opens a pull request on GitHub.
+Frontend: https://repomind-jgiss9naweraclfh69cack.streamlit.app
+Backend: https://repomind-54s3.onrender.com
 
 ---
 
-## How it works
+## 💡 What It Does
 
-RepoMind is a multi-agent pipeline built on LangGraph. Each agent has one job:
+You give RepoMind:
 
-```
+* a GitHub repository
+* a task or question
+
+It:
+
+* reads the entire codebase
+* understands it semantically
+* decides what to do
+* executes a full pipeline
+
+---
+
+### 🔹 Two Modes
+
+#### 🧠 Ask Mode
+
+Ask anything about the codebase:
+
+* “Where is authentication handled?”
+* “What does this repo do?”
+* “Which function processes the PDF?”
+
+RepoMind uses **RAG (Retrieval-Augmented Generation)** to search the code and give precise answers.
+
+---
+
+#### 🛠 Dev Mode
+
+Describe a code change:
+
+* “Add input validation to py_reader in backend/pdf_reader.py”
+* “Add error handling to explain_legal_question”
+
+RepoMind:
+
+1. Writes the code
+2. Reviews it
+3. Tests it
+4. Shows it to you
+5. Opens a pull request (after approval)
+
+---
+
+## 🧠 How It Works
+
+RepoMind is built as a **multi-agent pipeline using LangGraph**.
+
+```text
 GitHub Repo
      ↓
 Git Fetcher        — pulls files, commits, issues, PRs
      ↓
-Chunker            — splits Python files by function and class
+Chunker            — splits Python files (AST-based)
      ↓
-Embedder           — converts code into semantic vectors
+Embedder           — converts code into vectors
      ↓
-Vector Store       — stores in ChromaDB for retrieval
+Vector Store       — ChromaDB
      ↓
-Planner            — decides: answer a question or make a change?
+Planner            — decides: answer or modify?
      ↓
       ┌─────────────────────┬──────────────────────┐
       ↓                     ↓
@@ -44,138 +83,133 @@ Planner            — decides: answer a question or make a change?
   (RAG response)            ↓
                         Coder Agent
                             ↓
-                        Reviewer Agent    ← rejects + retries up to 3x
+                        Reviewer Agent   ← retries up to 3x
                             ↓
-                        Tester Agent      ← syntax checks, retries up to 2x
+                        Tester Agent     ← syntax validation
                             ↓
-                     ⏸ Human Review       ← YOU approve or reject
+                     ⏸ Human Review      ← YOU decide
                             ↓
-                         PR Agent         — opens pull request on GitHub
+                         PR Agent        — creates GitHub PR
 ```
 
-The pipeline checkpoints its state at every step. If you reject the code and give feedback, it loops back to the coder with your note and tries again — no limit on human retries.
+---
+
+## 🔁 Human-in-the-loop System
+
+* You **approve or reject** changes before PR
+* If rejected → system retries with your feedback
+* No limit on human retries
 
 ---
 
-## Tech stack
+## 🧰 Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Agent orchestration | LangGraph |
-| LLM provider | Groq (llama-3.3-70b, kimi-k2, llama-3.1-8b) |
-| Code understanding | RAG with ChromaDB + sentence-transformers |
-| GitHub integration | PyGithub |
-| Backend API | FastAPI |
-| Frontend | Streamlit |
+| Layer               | Technology                             |
+| ------------------- | -------------------------------------- |
+| Backend             | FastAPI                                |
+| Frontend            | Streamlit                              |
+| Agent Orchestration | LangGraph                              |
+| LLM                 | Groq (LLaMA models)                    |
+| Code Understanding  | RAG (ChromaDB + Sentence Transformers) |
+| GitHub Integration  | PyGithub                               |
+| Deployment          | Render + Streamlit Cloud               |
 
 ---
 
-## Running locally
+## 🚀 Running Locally
 
-**1. Clone and install**
+### 1. Clone repo
 
 ```bash
 git clone https://github.com/yourusername/repomind
 cd repomind
+```
+
+### 2. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-**2. Set up environment variables**
+### 3. Environment variables
 
-Create a `.env` file in the root:
+Create `.env`:
 
 ```
 GITHUB_TOKEN=your_github_token
 GROQ_API_KEY=your_groq_api_key
 ```
 
-**3. Set up Streamlit password**
-
-Create `.streamlit/secrets.toml`:
-
-```toml
-APP_PASSWORD = "yourpassword"
-```
-
-**4. Start the backend**
+### 4. Run backend
 
 ```bash
 uvicorn backend.api:app --reload --port 8000
 ```
 
-**5. Start the frontend**
+### 5. Run frontend
 
 ```bash
-streamlit run app.py
+streamlit run frontend/app.py
 ```
 
-Open `http://localhost:8501`, enter your password, and you're ready.
+---
+
+## 🧪 Example Queries
+
+### Ask Mode
+
+* explain what this repo does
+* where is PDF parsing handled
+* how does authentication work
+
+### Dev Mode
+
+* add input validation to py_reader
+* add error handling to llm_explainer
+* add docstrings to search.py
 
 ---
 
-## Example queries
-
-**Ask mode**
-- `explain what this repo does`
-- `where is the PDF parsing handled`
-- `how does authentication work`
-
-**Dev mode**
-- `add input validation to py_reader in backend/pdf_reader.py`
-- `add error handling to explain_legal_question in backend/llm_explainer.py`
-- `add a docstring to every function in backend/search.py`
-
----
-
-## Project structure
+## 📁 Project Structure
 
 ```
 repomind/
-├── agent/
-│   ├── answer_agent.py     # RAG answer generation
-│   ├── coder_agent.py      # code generation with two-phase LLM pattern
-│   ├── plannar.py          # query classification and planning
-│   ├── pr_agent.py         # GitHub branch, commit, and PR creation
-│   ├── reviewer_agent.py   # code review with pass/fail verdict
-│   ├── tester_agent.py     # syntax checking with actionable hints
-│   └── llms.py             # central LLM configuration
-├── data/
-│   ├── git_fetcher.py      # GitHub API wrapper
-│   └── chunk.py            # AST-based Python code chunker
-├── rag/
-│   ├── embedding.py        # batch sentence-transformer encoding
-│   ├── vectorstore.py      # ChromaDB read/write
-│   └── model_embed.py      # lazy-loaded embedding model singleton
-├── states/
-│   └── state.py            # LangGraph graph definition and all nodes
-├── backend/
-│   └── api.py              # FastAPI with SSE streaming endpoints
-└── app.py                  # Streamlit frontend
+├── agent/        # agents (planner, coder, reviewer, tester)
+├── data/         # GitHub + chunking logic
+├── rag/          # embeddings + vector DB
+├── states/       # LangGraph workflow
+├── backend/      # FastAPI API
+├── frontend/     # Streamlit UI
 ```
 
 ---
 
-## Known limitations
+## ⚠️ Known Limitations
 
-**Python repositories only** — the code chunker uses Python's `ast` module for semantic splitting. Other languages fall outside the current scope.
-
-**Single file changes only** — the planner identifies one target file per task. Multi-file refactors are not supported.
-
-**Local file storage** — ChromaDB and the LangGraph checkpoint database write to local folders. In a cloud deployment these need persistent volumes.
-
-**Coder reliability on complex files** — files with heavy multiline string literals (prompt templates, docstrings) occasionally cause syntax errors in the generated code. The tester catches these and retries automatically.
+* Python-only support (AST-based parsing)
+* Single-file modifications only
+* Local vector DB (not cloud-native yet)
+* Complex files may require retries
+* Coder reliability on complex files
 
 ---
 
-## Future work
+## 🔮 Future Work
 
-- Multi-file change support — planner returns a list of files, each gets its own coder/reviewer/tester cycle
-- Support for JS, TypeScript, Go via tree-sitter chunking
-- Streaming agent logs to the UI in real time
-- Cloud-native ChromaDB for stateless deployment
+* Multi-file changes
+* Support for JS / TypeScript / Go
+* Cloud-native vector DB
+* Real-time streaming logs UI
 
 ---
 
-## Author
+## 👨‍💻 Author
 
-Built by [Your Navneet Singh](https://github.com/1Navneet23)
+**Navneet Singh**
+B.Tech AI & Data Science
+(https://github.com/1Navneet23)
+---
+
+## ⭐ If you like this project
+
+Give it a star ⭐
