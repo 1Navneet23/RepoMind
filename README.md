@@ -1,6 +1,6 @@
 # RepoMind 🚀
 
-**AI-Powered Multi-Agent GitHub Assistant that Understands and Fixes Code**
+**AI-Powered Multi-Agent GitHub Assistant that Understands and Fixes Code with full observability and tracing**
 
 RepoMind is a full-stack AI system that reads your GitHub repository, understands the entire codebase, and can either answer questions or generate real code changes — with automated review, testing, and pull request creation.
 
@@ -113,6 +113,19 @@ Planner            — decides: answer or modify?
 | Code Understanding  | RAG (ChromaDB + Sentence Transformers) |
 | GitHub Integration  | PyGithub                               |
 | Deployment          | Render + Streamlit Cloud               |
+| Observability       | LangSmith                              |
+---
+
+## 🔍 Observability & Debugging
+
+RepoMind uses LangSmith for tracing, debugging, and monitoring multi-agent workflows.
+
+📊 Tracks each agent step in the pipeline
+🔍 Visualizes execution flow (Planner → Coder → Reviewer → Tester)
+🧪 Helps debug failures and retry logic
+📈 Provides insights into LLM performance and latency
+
+This enables full visibility into the reasoning and execution of the AI system, making it easier to debug complex multi-agent interactions.
 
 ---
 
