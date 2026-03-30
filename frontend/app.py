@@ -131,18 +131,27 @@ def elapsed_str(start: float) -> str:
     return f"{secs // 60}m {secs % 60}s"
 
 
-def request_with_retry(method: str, url: str, retries: int = 3, **kwargs) -> requests.Response:
+def request_with_retry(method: str, url: str, retries: int = 5, **kwargs) -> requests.Response:
     """
-    Wrapper around requests that retries on ReadTimeout up to `retries` times.
-    Raises the last exception if all attempts fail.
+    Retries on ReadTimeout and 502/503 (backend still warming up).
+    Uses back-off for gateway errors. Raises last exception if all attempts fail.
     """
     last_exc = None
     for attempt in range(1, retries + 1):
         try:
             if method == "get":
-                return requests.get(url, **kwargs)
+                resp = requests.get(url, **kwargs)
             elif method == "post":
-                return requests.post(url, **kwargs)
+                resp = requests.post(url, **kwargs)
+            # Retry on gateway errors — backend not fully up yet
+            if resp.status_code in (502, 503):
+                last_exc = requests.exceptions.HTTPError(response=resp)
+                if attempt < retries:
+                    wait = 5 * attempt  # back-off: 5s, 10s, 15s …
+                    st.toast(f"Backend not ready ({resp.status_code}), retrying in {wait}s… ({attempt}/{retries})", icon="⏳")
+                    time.sleep(wait)
+                continue
+            return resp
         except requests.exceptions.ReadTimeout as e:
             last_exc = e
             if attempt < retries:
@@ -160,37 +169,28 @@ def stream_and_collect(url: str) -> dict:
     timer_box  = st.empty()
     final_data = {}
 
-    try:
-        with requests.get(url, stream=True, timeout=(30, 600)) as r:
-            r.raise_for_status()
-            current_node = None
+    with requests.get(url, stream=True, timeout=600) as r:
+        r.raise_for_status()
+        current_node = None
 
-            for raw_line in r.iter_lines():
-                if not raw_line:
-                    continue
-                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-                if not line.startswith("data:"):
-                    continue
-                event = json.loads(line[5:].strip())
-                current_node, final_data, done = _handle_sse_event(
-                    event, completed, steps_box, current_node
+        for raw_line in r.iter_lines():
+            if not raw_line:
+                continue
+            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+            if not line.startswith("data:"):
+                continue
+            event = json.loads(line[5:].strip())
+            current_node, final_data, done = _handle_sse_event(
+                event, completed, steps_box, current_node
+            )
+            if st.session_state.pipeline_start:
+                timer_box.markdown(
+                    f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
+                    unsafe_allow_html=True,
                 )
-                if st.session_state.pipeline_start:
-                    timer_box.markdown(
-                        f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
-                        unsafe_allow_html=True,
-                    )
-                if done:
-                    timer_box.empty()
-                    break
-    except requests.exceptions.ReadTimeout:
-        timer_box.empty()
-        st.error("Stream timed out waiting for the backend. The pipeline may still be running — refresh and check back.")
-        st.stop()
-    except requests.exceptions.ConnectionError:
-        timer_box.empty()
-        st.error("Lost connection to backend during streaming.")
-        st.stop()
+            if done:
+                timer_box.empty()
+                break
 
     st.session_state.completed_steps = completed
     return final_data
@@ -203,37 +203,28 @@ def stream_and_collect_post(url: str, body: dict) -> dict:
     timer_box  = st.empty()
     final_data = {}
 
-    try:
-        with requests.post(url, json=body, stream=True, timeout=(30, 600)) as r:
-            r.raise_for_status()
-            current_node = None
+    with requests.post(url, json=body, stream=True, timeout=600) as r:
+        r.raise_for_status()
+        current_node = None
 
-            for raw_line in r.iter_lines():
-                if not raw_line:
-                    continue
-                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-                if not line.startswith("data:"):
-                    continue
-                event = json.loads(line[5:].strip())
-                current_node, final_data, done = _handle_sse_event(
-                    event, completed, steps_box, current_node
+        for raw_line in r.iter_lines():
+            if not raw_line:
+                continue
+            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+            if not line.startswith("data:"):
+                continue
+            event = json.loads(line[5:].strip())
+            current_node, final_data, done = _handle_sse_event(
+                event, completed, steps_box, current_node
+            )
+            if st.session_state.pipeline_start:
+                timer_box.markdown(
+                    f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
+                    unsafe_allow_html=True,
                 )
-                if st.session_state.pipeline_start:
-                    timer_box.markdown(
-                        f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
-                        unsafe_allow_html=True,
-                    )
-                if done:
-                    timer_box.empty()
-                    break
-    except requests.exceptions.ReadTimeout:
-        timer_box.empty()
-        st.error("Stream timed out waiting for the backend. Please try again.")
-        st.stop()
-    except requests.exceptions.ConnectionError:
-        timer_box.empty()
-        st.error("Lost connection to backend during streaming.")
-        st.stop()
+            if done:
+                timer_box.empty()
+                break
 
     st.session_state.completed_steps = completed
     return final_data
@@ -263,18 +254,19 @@ def _handle_sse_event(event, completed, steps_box, current_node):
 # ── Backend Wake System (auto, no button needed) ──────────────────────────────
 
 def ping_backend() -> bool:
-    """Quick ping to check if backend is reachable."""
+    """Ping the health/root endpoint. Returns True only on a non-502/503 response."""
     try:
         r = requests.get(API, timeout=10)
-        return r.status_code < 500
+        # 502/503 means the process is still booting — treat as not ready
+        return r.status_code not in (502, 503) and r.status_code < 500
     except Exception:
         return False
 
 
 def auto_wake_backend():
     """
-    Auto-ping backend on page load. Retries every 5s for up to 90s.
-    No manual button needed — fully automatic with progress bar.
+    Auto-ping backend on page load. Retries every 5s for up to 300s (5 min).
+    Render free-tier cold starts can take 2-4 minutes.
     """
     if st.session_state.backend_ready:
         return True
@@ -290,9 +282,9 @@ def auto_wake_backend():
         return True
 
     # Backend cold — auto-retry with progress
-    status_box.warning("🟡 Backend is waking up (free tier). Hang tight…")
+    status_box.warning("🟡 Backend is waking up (free tier cold start — up to 3 min). Hang tight…")
     progress = st.progress(0)
-    max_wait, interval = 90, 5
+    max_wait, interval = 300, 5
     elapsed = 0
 
     while elapsed < max_wait:
@@ -311,7 +303,7 @@ def auto_wake_backend():
     progress.empty()
     st.session_state.backend_status = "error"
     status_box.error(
-        "❌ Backend didn't respond within 90 seconds. "
+        "❌ Backend didn't respond within 5 minutes. "
         "It may be down — try refreshing the page."
     )
     return False
