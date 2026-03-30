@@ -163,34 +163,45 @@ def request_with_retry(method: str, url: str, retries: int = 5, **kwargs) -> req
 
 
 def stream_and_collect(url: str) -> dict:
-    """GET SSE endpoint — update step UI live, return final done payload."""
+    """GET SSE endpoint — retries up to 3 times if connection drops."""
     completed  = list(st.session_state.completed_steps)
     steps_box  = st.empty()
     timer_box  = st.empty()
     final_data = {}
 
-    with requests.get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        current_node = None
-
-        for raw_line in r.iter_lines():
-            if not raw_line:
-                continue
-            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-            if not line.startswith("data:"):
-                continue
-            event = json.loads(line[5:].strip())
-            current_node, final_data, done = _handle_sse_event(
-                event, completed, steps_box, current_node
-            )
-            if st.session_state.pipeline_start:
-                timer_box.markdown(
-                    f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
-                    unsafe_allow_html=True,
-                )
-            if done:
+    for attempt in range(1, 4):
+        try:
+            with requests.get(url, stream=True, timeout=(30, 300)) as r:
+                r.raise_for_status()
+                current_node = None
+                for raw_line in r.iter_lines():
+                    if not raw_line:
+                        continue
+                    line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                    if not line.startswith("data:"):
+                        continue
+                    event = json.loads(line[5:].strip())
+                    current_node, final_data, done = _handle_sse_event(
+                        event, completed, steps_box, current_node
+                    )
+                    if st.session_state.pipeline_start:
+                        timer_box.markdown(
+                            f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    if done:
+                        timer_box.empty()
+                        st.session_state.completed_steps = completed
+                        return final_data
+            break  # exited loop cleanly
+        except Exception as e:
+            if attempt < 3:
+                st.toast(f"Stream dropped, retrying… ({attempt}/3)", icon="⏳")
+                time.sleep(3)
+            else:
                 timer_box.empty()
-                break
+                st.error(f"Stream failed after 3 attempts: {e}")
+                st.stop()
 
     st.session_state.completed_steps = completed
     return final_data
