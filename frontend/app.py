@@ -160,28 +160,37 @@ def stream_and_collect(url: str) -> dict:
     timer_box  = st.empty()
     final_data = {}
 
-    with requests.get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        current_node = None
+    try:
+        with requests.get(url, stream=True, timeout=(30, 600)) as r:
+            r.raise_for_status()
+            current_node = None
 
-        for raw_line in r.iter_lines():
-            if not raw_line:
-                continue
-            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-            if not line.startswith("data:"):
-                continue
-            event = json.loads(line[5:].strip())
-            current_node, final_data, done = _handle_sse_event(
-                event, completed, steps_box, current_node
-            )
-            if st.session_state.pipeline_start:
-                timer_box.markdown(
-                    f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
-                    unsafe_allow_html=True,
+            for raw_line in r.iter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                if not line.startswith("data:"):
+                    continue
+                event = json.loads(line[5:].strip())
+                current_node, final_data, done = _handle_sse_event(
+                    event, completed, steps_box, current_node
                 )
-            if done:
-                timer_box.empty()
-                break
+                if st.session_state.pipeline_start:
+                    timer_box.markdown(
+                        f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                if done:
+                    timer_box.empty()
+                    break
+    except requests.exceptions.ReadTimeout:
+        timer_box.empty()
+        st.error("Stream timed out waiting for the backend. The pipeline may still be running — refresh and check back.")
+        st.stop()
+    except requests.exceptions.ConnectionError:
+        timer_box.empty()
+        st.error("Lost connection to backend during streaming.")
+        st.stop()
 
     st.session_state.completed_steps = completed
     return final_data
@@ -194,28 +203,37 @@ def stream_and_collect_post(url: str, body: dict) -> dict:
     timer_box  = st.empty()
     final_data = {}
 
-    with requests.post(url, json=body, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        current_node = None
+    try:
+        with requests.post(url, json=body, stream=True, timeout=(30, 600)) as r:
+            r.raise_for_status()
+            current_node = None
 
-        for raw_line in r.iter_lines():
-            if not raw_line:
-                continue
-            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
-            if not line.startswith("data:"):
-                continue
-            event = json.loads(line[5:].strip())
-            current_node, final_data, done = _handle_sse_event(
-                event, completed, steps_box, current_node
-            )
-            if st.session_state.pipeline_start:
-                timer_box.markdown(
-                    f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
-                    unsafe_allow_html=True,
+            for raw_line in r.iter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                if not line.startswith("data:"):
+                    continue
+                event = json.loads(line[5:].strip())
+                current_node, final_data, done = _handle_sse_event(
+                    event, completed, steps_box, current_node
                 )
-            if done:
-                timer_box.empty()
-                break
+                if st.session_state.pipeline_start:
+                    timer_box.markdown(
+                        f'<div class="elapsed">⏱ Elapsed: {elapsed_str(st.session_state.pipeline_start)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                if done:
+                    timer_box.empty()
+                    break
+    except requests.exceptions.ReadTimeout:
+        timer_box.empty()
+        st.error("Stream timed out waiting for the backend. Please try again.")
+        st.stop()
+    except requests.exceptions.ConnectionError:
+        timer_box.empty()
+        st.error("Lost connection to backend during streaming.")
+        st.stop()
 
     st.session_state.completed_steps = completed
     return final_data
