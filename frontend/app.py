@@ -12,7 +12,7 @@ import json
 import requests
 import streamlit as st
 
-API = "https://repomind-54s3.onrender.com"
+API = "http://127.0.0.1:8000/"
 
 st.set_page_config(page_title="Git Analyser", layout="wide")
 
