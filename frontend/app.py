@@ -12,8 +12,8 @@ import json
 import requests
 import streamlit as st
 
-API = "http://127.0.0.1:8000/"
-
+ 
+API = "http://127.0.0.1:8000"
 st.set_page_config(page_title="Git Analyser", layout="wide")
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
