@@ -6,13 +6,6 @@ RepoMind is a full-stack AI system that reads your GitHub repository, understand
 
 ---
 
-## 🌐 Live Demo
-
-Frontend: https://repomind-jgiss9naweraclfh69cack.streamlit.app
-Backend: https://repomind-54s3.onrender.com
-
----
-
 ## 💡 What It Does
 
 You give RepoMind:
